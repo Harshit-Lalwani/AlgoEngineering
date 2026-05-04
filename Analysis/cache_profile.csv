@@ -1,0 +1,6 @@
+algorithm,d_refs,d1_misses,lld_misses,d1_miss_rate
+std::sort,17842576,223375,34946,1.25%
+multikey_quicksort,19789215,236155,34937,1.19%
+burstsort,18065133,309121,57586,1.71%
+msd_radix_sort,24431975,379112,45121,1.55%
+lazy_funnelsort,27756761,359316,44936,1.29%
