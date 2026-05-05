@@ -5,7 +5,7 @@
 #
 # Usage (from repo root):
 #   chmod +x Analysis/run_perf.sh
-#   cd cpp/build && ../../Analysis/run_perf.sh
+#   cd cpp/build && ./Analysis/run_perf.sh
 #
 # Requires: Linux with perf, or Valgrind
 # Output:   Analysis/cache_results.csv (multi-N)
@@ -13,7 +13,7 @@
 set -euo pipefail
 
 BUILD_DIR="$(pwd)"
-OUT_CSV="../../Analysis/cache_results.csv"
+OUT_CSV="Analysis/cache_results.csv"
 
 ALGOS=("std::sort" "burstsort" "c_burstsort" "msd_radix_sort" "merge_sort" "lazy_funnelsort")
 DATASETS=("random" "wiki_random")

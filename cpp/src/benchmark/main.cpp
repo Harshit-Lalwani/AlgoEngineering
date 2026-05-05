@@ -9,6 +9,12 @@
 #include <algorithm>
 #include <numeric>
 #include <cmath>
+#include <map>
+#include <set>
+#include <tuple>
+#include <atomic>
+#include <array>
+#include <utility>
 
 #include "algorithms/baselines.hpp"
 #include "algorithms/burstsort.hpp"
