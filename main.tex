@@ -45,9 +45,9 @@ every algorithm studied.
 Algorithm           & Time complexity        & I/O $Q(N;\,M;\,B)$                        & Cache model \\ \midrule
 \texttt{std::sort}  & $O(N \log N \cdot \bar\ell)$ & $O\!\left(\tfrac{N}{B}\log N\right)$ & Cache-agnostic \\
 Multikey QS         & $O(D + N \log N)$      & $O\!\left(\tfrac{N}{B}\log N\right)$       & Cache-agnostic \\
-MSD Radix Sort      & $O(D)$                 & $O\!\left(\tfrac{N \cdot \bar{d}}{B}\right)$ if $|\Sigma| \le M/B$ & Cache-aware \\
-Burstsort           & $O(D + N \log L)$      & $O\!\left(\tfrac{N}{B} \cdot \tfrac{D}{L}\right)$ & Cache-aware \\
-C-Burstsort         & $O(D + N \log L)$      & $O\!\left(\tfrac{N}{B} \cdot \tfrac{D}{L}\right)$ & Cache-aware \\
+MSD Radix Sort      & $O(D)$                 & $O\!\left(\tfrac{D}{B}\right)$ if $|\Sigma| \le M/B$ & Cache-aware \\
+Burstsort           & $O(D + N \log L)$      & $O\!\left(\tfrac{N}{B} \cdot \tfrac{D}{N \cdot L}\right)$ & Cache-aware \\
+C-Burstsort         & $O(D + N \log L)$      & $O\!\left(\tfrac{N}{B} \cdot \tfrac{D}{N \cdot L}\right)$ & Cache-aware \\
 Funnelsort (lazy)   & $O(N \log N)$          & $O\!\left(\tfrac{N}{B}\log_{M/B}\tfrac{N}{B}\right)$ & Cache-oblivious \\ \bottomrule
 \end{tabular}
 \end{table}
@@ -115,7 +115,7 @@ operates within the fast memory.
 \begin{itemize}
   \item \textbf{Time:} $O(D + N \log L)$, where $D = \sum_{i=1}^{N} d_i$ is the
         total distinguishing prefix length across all $N$ strings.
-  \item \textbf{I/O:} $Q(N) \approx O\!\left(\tfrac{N}{B} \cdot \tfrac{D}{L}\right)$.
+  \item \textbf{I/O:} $Q(N) \approx O\!\left(\tfrac{N}{B} \cdot \tfrac{D}{N \cdot L}\right)$.
         By choosing the burst threshold $L < M$, each bucket sort occurs entirely
         within the cache.  The dominant cost is then the initial trie distribution
         (a near-sequential scan) and the final readout, both $O(N/B)$.
@@ -142,8 +142,8 @@ buckets.
 \begin{algorithmic}[1]
 \State \textbf{Count:} frequencies of $\text{char\_at}(s,d)$ for $s \in A[lo \ldots hi]$
 \State \textbf{Indices:} transform counts into absolute start positions in $aux$
-  \Comment{Invariant: $aux$ indexed from $lo$; indices in $[lo, hi]$}
-\State \textbf{Distribute:} move strings from $A$ to $aux[lo \ldots hi]$ using indices
+  \Comment{Invariant: $aux$ indexed from $lo$; write indices in $[lo, hi]$}
+\State \textbf{Distribute:} move strings from $A$ to $aux[lo + \text{count}[c]]$ for each bucket $c$
 \State \textbf{Copy back:} $A[lo \ldots hi] \gets aux[lo \ldots hi]$
 \State \textbf{Recurse:} for each $r \in \Sigma$, sort sub-partition at depth $d+1$
 \end{algorithmic}
@@ -152,8 +152,8 @@ buckets.
 \textbf{Complexity:}
 \begin{itemize}
   \item \textbf{I/O:} $Q(N) = O(D/B)$ when $|\Sigma| \le M/B$, where
-        $\bar{d} = D/N$ is the mean distinguishing depth.  Each pass is a
-        $\text{Scan}(N)$ of cost $O(N/B)$; there are $\bar{d}$ passes on
+        $D = \sum d_i$ is the total distinguishing prefix length.  Each pass is a
+        $\text{Scan}(N)$ of cost $O(N/B)$; there are $\bar{d} = D/N$ passes on
         average.  If the alphabet size is large relative to $M/B$, the write
         pointers for distinct buckets reside in different cache lines and every
         write may cause a miss (\emph{bucket thrashing}).
@@ -177,7 +177,7 @@ string pointers (not a string-specific algorithm); $K = \lceil N^{1/3} \rceil$.
 \caption{Lazy Funnelsort ($S$)}
 \begin{algorithmic}[1]
 \If{$|S| \le \text{THRESHOLD}$}
-    \State Sort $S$ with insertion sort \Comment{THRESHOLD$\,{=}\,8192$; $8192 \times 14\,\text{B} \approx 114\,\text{KB} \le$ typical L2}
+    \State Sort $S$ with insertion sort \Comment{THRESHOLD$\,{=}\,8192$; $8192 \times 14\,\text{B} \approx 114\,\text{KB} \le$ L2 per core}
 \Else
     \State Divide $S$ into $K = \lceil|S|^{1/3}\rceil$ equal streams
     \State \textbf{Funnelsort}(each stream)
@@ -237,8 +237,7 @@ Two variants are used:
 
 All experiments were conducted on a single machine pinned to one physical core
 (\texttt{taskset -c~0}) with CPU frequency scaling disabled to reduce timer
-noise.  Fill in Table~\ref{tab:hw} with your machine's specifications before
-submitting.
+noise.
 
 \begin{table}[h]
 \centering
@@ -247,12 +246,12 @@ submitting.
 \begin{tabular}{@{}ll@{}}
 \toprule
 Parameter          & Value \\ \midrule
-CPU model          & \textit{(e.g.\ Intel Core i7-12700H)} \\
-L1 data cache      & \textit{(e.g.\ 48\,KB per core)} \\
-L2 cache           & \textit{(e.g.\ 1.25\,MB per core)} \\
-L3 / LLC           & \textit{(e.g.\ 24\,MB shared)} \\
-RAM                & \textit{(e.g.\ 16\,GB DDR5)} \\
-OS                 & \textit{(e.g.\ Ubuntu 22.04, kernel 6.5)} \\
+CPU model          & 12th Gen Intel Core i5-12450H \\
+L1 data cache      & 48\,KiB per core (6 cores, 288\,KiB total) \\
+L2 cache           & 1.25\,MiB per core (6 cores, 7.5\,MiB total) \\
+L3 / LLC           & 12\,MiB shared \\
+RAM                & 7.6\,GiB \\
+OS / Kernel        & WSL2, Linux kernel 6.6.87.2-microsoft-standard-WSL2 \\
 Compiler flags     & \texttt{g++ -O3 -std=c++20 -march=native} \\
 \bottomrule
 \end{tabular}
@@ -394,7 +393,7 @@ $N$ is large enough for the working set to exceed the LLC.
   \item \textbf{Cache-aware algorithms scale better.}
         Burstsort and C-Burstsort exhibit near-linear scaling in $N$ on all
         four datasets.  \texttt{std::sort} and MSD Radix Sort show super-linear
-        growth as $N$ exceeds the LLC.
+        growth as $N$ exceeds the LLC (12\,MiB on this machine).
   \item \textbf{Arena allocation matters.}
         C-Burstsort consistently outperforms the original Burstsort by a
         moderate constant factor, attributable to better spatial locality in
@@ -436,7 +435,7 @@ management and deterministic cache control.
             C-Burstsort.
       \item \texttt{cache\_oblivious.cpp}: $K$-way Funnelsort
             ($K = \lceil N^{1/3} \rceil$, base-case threshold 8\,192 strings
-            $\approx 114$\,KB).
+            $\approx 114$\,KB $\le$ L2 per core on the test machine).
       \item \texttt{baselines.cpp}: MKQS and \texttt{std::sort} wrappers.
     \end{itemize}
   \item \texttt{Analysis/}
