@@ -1,0 +1,365 @@
+\documentclass[aspectratio=169]{beamer}
+\usetheme{Madrid}
+\usecolortheme{seahorse}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+
+% ── Colour palette ──────────────────────────────────────────────────────────
+\definecolor{darkblue}{RGB}{10,30,80}
+\definecolor{midblue}{RGB}{30,80,160}
+\definecolor{accent}{RGB}{0,153,153}
+\setbeamercolor{frametitle}{bg=darkblue,fg=white}
+\setbeamercolor{title}{fg=white}
+\setbeamercolor{structure}{fg=midblue}
+\setbeamercolor{block title}{bg=midblue,fg=white}
+\setbeamercolor{block body}{bg=blue!5}
+\setbeamercolor{alerted text}{fg=accent}
+
+% ── Title page ──────────────────────────────────────────────────────────────
+\title[Cache-Efficient String Sorting]{
+  Cache-Aware \& Cache-Oblivious Algorithms\\for String Sorting}
+\author{Kausheya Roy \and Harshit Lalwani}
+\institute{AlgoEngineering Project}
+\date{May 2026}
+
+\begin{document}
+
+%% ─── SLIDE 1: Title ────────────────────────────────────────────────────────
+\begin{frame}
+  \titlepage
+\end{frame}
+
+%% ─── SLIDE 2: Outline ──────────────────────────────────────────────────────
+\begin{frame}{Outline}
+  \tableofcontents
+\end{frame}
+
+\section{Problem \& Motivation}
+
+%% ─── SLIDE 3: Problem Statement ────────────────────────────────────────────
+\begin{frame}{Problem Statement}
+  \begin{block}{Goal}
+    Sort $N$ strings while \textbf{minimising I/O operations}
+    $Q(N;\,M;\,B)$ between fast cache ($M$) and slower memory
+    (block size $B$).
+  \end{block}
+  \vspace{0.5em}
+  \begin{itemize}
+    \item \textbf{Success metric:} approach the scan bound
+          $\mathrm{Scan}(N) = O(N/B)$
+    \item Modern CPUs: L1 48\,KiB, L2 1.25\,MiB, L3 12\,MiB
+          $\Rightarrow$ memory hierarchy deeply affects runtime
+    \item Standard sorts ignore cache $\Rightarrow$ $O(N \log N)$
+          cache misses on large $N$
+  \end{itemize}
+  \vspace{0.5em}
+  \begin{alertblock}{Key insight}
+    Engineering cache locality delivers more practical speedup than
+    asymptotic optimality alone.
+  \end{alertblock}
+\end{frame}
+
+%% ─── SLIDE 4: I/O Model ────────────────────────────────────────────────────
+\begin{frame}{Memory Hierarchy \& I/O Model}
+  \begin{columns}
+    \column{0.52\textwidth}
+      \textbf{External-memory (EM) model}
+      \begin{itemize}
+        \item Two levels: fast cache of size $M$, slow disk
+        \item Data transferred in blocks of size $B$
+        \item Cost $=$ number of block transfers $Q(N;M;B)$
+      \end{itemize}
+      \vspace{0.5em}
+      \textbf{Cache-oblivious model}
+      \begin{itemize}
+        \item Same two-level structure but algorithm \emph{does not}
+              know $M$ or $B$
+        \item Optimal for all levels simultaneously
+      \end{itemize}
+    \column{0.44\textwidth}
+      \begin{block}{Test machine (WSL2)}
+        \begin{tabular}{ll}
+          CPU & i5-12450H \\
+          L1d & 48\,KiB/core \\
+          L2  & 1.25\,MiB/core \\
+          LLC & 12\,MiB \\
+          RAM & 7.6\,GiB \\
+          OS  & kernel 6.6.87 \\
+        \end{tabular}
+      \end{block}
+  \end{columns}
+\end{frame}
+
+\section{Algorithms}
+
+%% ─── SLIDE 5: Complexity Summary ───────────────────────────────────────────
+\begin{frame}{Theoretical Complexity Summary}
+  \footnotesize
+  \begin{tabular}{@{}lllc@{}}
+    \toprule
+    Algorithm & Time & I/O $Q(N;M;B)$ & Model \\
+    \midrule
+    \texttt{std::sort} & $O(N\log N\cdot\bar\ell)$
+      & $O\!\left(\tfrac{N}{B}\log N\right)$ & agnostic \\
+    Multikey QS & $O(D+N\log N)$
+      & $O\!\left(\tfrac{N}{B}\log N\right)$ & agnostic \\
+    MSD Radix & $O(D)$
+      & $O(D/B)$ if $|\Sigma|\le M/B$ & aware \\
+    Burstsort & $O(D+N\log L)$
+      & $O\!\left(\tfrac{N}{B}\cdot\tfrac{D}{NL}\right)$ & aware \\
+    C-Burstsort & $O(D+N\log L)$
+      & $O\!\left(\tfrac{N}{B}\cdot\tfrac{D}{NL}\right)$ & aware \\
+    Funnelsort & $O(N\log N)$
+      & $O\!\left(\tfrac{N}{B}\log_{M/B}\tfrac{N}{B}\right)$ & oblivious \\
+    \bottomrule
+  \end{tabular}
+  \vspace{0.4em}
+  \scriptsize
+  $D=\sum d_i$: total distinguishing prefix length;
+  $L$: burst threshold;
+  $\bar\ell$: mean string length.
+\end{frame}
+
+%% ─── SLIDE 6: Burstsort ────────────────────────────────────────────────────
+\begin{frame}{Cache-Aware: Burstsort \& C-Burstsort}
+  \begin{columns}
+    \column{0.55\textwidth}
+      \textbf{Burstsort idea:}
+      \begin{itemize}
+        \item Trie with leaf \emph{buckets} sized $L < M$
+        \item In-bucket sort stays entirely in cache
+        \item I/O dominated by trie traversal: near $O(N/B)$
+      \end{itemize}
+      \vspace{0.5em}
+      \textbf{C-Burstsort (arena variant):}
+      \begin{itemize}
+        \item Single contiguous arena replaces heap allocation
+        \item Prefix chars copied to dense key buffers
+        \item Same $O$ complexity, substantially lower constant
+      \end{itemize}
+    \column{0.42\textwidth}
+      \begin{block}{I/O bound}
+        \[ Q \approx O\!\left(\frac{N}{B}\cdot\frac{D}{N\cdot L}\right) \]
+        Choose $L < M$: bucket sorts free; trie scan $= O(N/B)$
+      \end{block}
+  \end{columns}
+\end{frame}
+
+%% ─── SLIDE 7: MSD Radix ────────────────────────────────────────────────────
+\begin{frame}{Cache-Aware: MSD Radix Sort}
+  \begin{itemize}
+    \item Count frequencies at depth $d$, distribute into $|\Sigma|$ buckets,
+          recurse per bucket
+    \item I/O: $O(D/B)$ when $|\Sigma|\le M/B$ — each pass is a scan
+    \item \textbf{Depth sensitivity:} mean recursion depth $= D/N$;
+          high-LCP datasets (\texttt{wiki\_heavy}) cause many passes
+    \item \alert{Bucket thrashing} when $|\Sigma| > M/B$: every write hits a
+          different cache line
+  \end{itemize}
+  \vspace{0.3em}
+  \begin{alertblock}{Fixed in implementation}
+    Distribute writes at \texttt{lo + count[c]} (not absolute 0);
+    copy-back uses the same $[lo, hi]$ window.
+  \end{alertblock}
+\end{frame}
+
+%% ─── SLIDE 8: Funnelsort ───────────────────────────────────────────────────
+\begin{frame}{Cache-Oblivious: Lazy Funnelsort}
+  \begin{columns}
+    \column{0.56\textwidth}
+      \begin{itemize}
+        \item $K$-way merge sort, $K = \lceil N^{1/3}\rceil$
+        \item Base case: 8\,192 strings
+              ($\approx 114$\,KB $\le$ L2 per core)
+        \item Proof sketch: recursion bottoms out when
+              $n\cdot\bar\ell \le M$;
+              subsequent merges incur \emph{zero} extra I/O
+        \item Holds for \emph{any} $M$ and $B$
+      \end{itemize}
+    \column{0.41\textwidth}
+      \begin{block}{Optimal I/O}
+        \[ Q = O\!\left(\frac{N}{B}\log_{M/B}\frac{N}{B}\right) \]
+      \end{block}
+      \begin{block}{Limitation}
+        Comparison-based $\Rightarrow$
+        wall-clock $\approx$ \texttt{std::sort};
+        advantage is provable I/O bound
+        without knowing $M$, $B$.
+      \end{block}
+  \end{columns}
+\end{frame}
+
+\section{Datasets}
+
+%% ─── SLIDE 9: Datasets ─────────────────────────────────────────────────────
+\begin{frame}{Four Datasets}
+  \begin{columns}
+    \column{0.48\textwidth}
+      \textbf{Synthetic}
+      \begin{itemize}
+        \item \textbf{random} — length 4--24, uniform chars;
+              minimal LCP depth; tests $N\log N$ base case
+        \item \textbf{prefix\_heavy} — shared long common prefix;
+              stresses $D$; exposes MSD Radix thrashing
+      \end{itemize}
+    \column{0.48\textwidth}
+      \textbf{Wikipedia titles (up to $5\times10^6$)}
+      \begin{itemize}
+        \item \textbf{wiki\_random} — uniform sample;
+              moderate LCP; representative real-world vocabulary
+        \item \textbf{wiki\_heavy} — ``List of\ldots'' filtered;
+              maximises $D$; worst case for depth-sensitive
+              algorithms
+      \end{itemize}
+  \end{columns}
+  \vspace{0.4em}
+  \begin{alertblock}{Why four datasets?}
+    Each dimension isolates a different complexity parameter:
+    $N$, $D/N$, $|\Sigma|$, and real-world prefix distribution.
+  \end{alertblock}
+\end{frame}
+
+\section{Experimental Setup}
+
+%% ─── SLIDE 10: Setup ───────────────────────────────────────────────────────
+\begin{frame}{Experimental Setup}
+  \begin{columns}
+    \column{0.52\textwidth}
+      \textbf{Methodology}
+      \begin{itemize}
+        \item 10 seeds per (algorithm, dataset, $N$)
+        \item 2 warm-up runs discarded (cold-cache bias)
+        \item Timer: \texttt{std::chrono::steady\_clock}
+              around sort only
+        \item Correctness: \texttt{std::is\_sorted} after every run
+        \item Cache counters: \texttt{perf stat} at
+              $N\in\{10^4,10^5,10^6\}$
+        \item CPU pinned: \texttt{taskset -c 0},
+              frequency scaling off
+      \end{itemize}
+    \column{0.44\textwidth}
+      \begin{block}{Hardware (WSL2)}
+        \begin{tabular}{ll}
+          CPU & i5-12450H \\
+          L1d & 48\,KiB/core \\
+          L2  & 1.25\,MiB/core \\
+          LLC & 12\,MiB \\
+          RAM & 7.6\,GiB \\
+          Kernel & 6.6.87-WSL2 \\
+          Flags & \texttt{-O3 -march=native} \\
+        \end{tabular}
+      \end{block}
+  \end{columns}
+\end{frame}
+
+\section{Results}
+
+%% ─── SLIDE 11: Time vs N (random) ──────────────────────────────────────────
+\begin{frame}{Wall-clock Time vs.\ $N$ — \texttt{random} Dataset}
+  \begin{center}
+    \includegraphics[width=0.82\textwidth]{Analysis/figures/time_vs_n_logx_random.png}
+  \end{center}
+  \footnotesize
+  Mean $\pm 1\sigma$, 10 seeds, log-$x$ scale.  Burstsort/C-Burstsort
+  near-linear; \texttt{std::sort} curves upward once $N$ exceeds LLC.
+\end{frame}
+
+%% ─── SLIDE 12: Time vs N (wiki_random) ─────────────────────────────────────
+\begin{frame}{Wall-clock Time vs.\ $N$ — \texttt{wiki\_random} Dataset}
+  \begin{center}
+    \includegraphics[width=0.82\textwidth]{Analysis/figures/time_vs_n_logx_wiki_random.png}
+  \end{center}
+  \footnotesize
+  C-Burstsort flattest.  MSD Radix Sort diverges sharply at large $N$
+  due to deep recursion on wiki-like prefixes.
+\end{frame}
+
+%% ─── SLIDE 13: Best at Largest N ───────────────────────────────────────────
+\begin{frame}{Best Algorithm at Largest $N$ (All Datasets)}
+  \begin{center}
+    \includegraphics[width=0.90\textwidth]{Analysis/figures/best_algorithm_largest_n.png}
+  \end{center}
+  \footnotesize
+  C-Burstsort fastest/joint-fastest on all wiki datasets.
+  MSD Radix Sort is the clear outlier on prefix-heavy inputs.
+\end{frame}
+
+%% ─── SLIDE 14: Time per Character ──────────────────────────────────────────
+\begin{frame}{Time per Character at $N=10^6$}
+  \begin{center}
+    \includegraphics[width=0.90\textwidth]{Analysis/figures/time_per_char_vs_dataset_fixed_n.png}
+  \end{center}
+  \footnotesize
+  Normalising by total chars gives dataset-agnostic comparison.
+  Burstsort family: low and consistent.
+  MSD Radix: highest cost on \texttt{prefix\_heavy} and \texttt{wiki\_heavy}.
+\end{frame}
+
+%% ─── SLIDE 15: Radix Depth ──────────────────────────────────────────────────
+\begin{frame}{MSD Radix: Recursion Depth vs.\ Time per Character}
+  \begin{center}
+    \includegraphics[width=0.76\textwidth]{Analysis/figures/radix_depth_vs_time_per_char.png}
+  \end{center}
+  \footnotesize
+  Each point = one (dataset, $N$) pair.  Strong positive correlation confirms
+  $O(D)$ theory.  \texttt{wiki\_heavy} clusters top-right.
+\end{frame}
+
+%% ─── SLIDE 16: Cache Profiling ──────────────────────────────────────────────
+\begin{frame}{Cache Profiling: LLC Misses vs.\ $N$}
+  \begin{center}
+    \includegraphics[width=0.78\textwidth]{Analysis/figures/two_algo_llc_miss_rate_vs_n.png}
+  \end{center}
+  \footnotesize
+  \texttt{std::sort} miss rate grows once $N$ exceeds LLC (12\,MiB).
+  C-Burstsort remains near the scanning floor, confirming
+  near-$O(N/B)$ I/O behaviour.
+\end{frame}
+
+\section{Key Takeaways}
+
+%% ─── SLIDE 17: Key Observations ────────────────────────────────────────────
+\begin{frame}{Key Observations}
+  \begin{enumerate}
+    \item \textbf{Cache-aware $\succ$ cache-agnostic at large $N$.}
+          Burstsort/C-Burstsort near-linear; \texttt{std::sort} super-linear
+          beyond LLC (12\,MiB here).
+    \item \textbf{Arena allocation matters.}
+          C-Burstsort beats Burstsort by a consistent constant factor
+          (dense key buffers = better spatial locality).
+    \item \textbf{MSD Radix is depth-limited.}
+          Recursion depth $\propto D/N$; directly causes outlier cost
+          on \texttt{wiki\_heavy} and \texttt{prefix\_heavy}.
+    \item \textbf{Funnelsort $\approx$ \texttt{std::sort} in wall-clock.}
+          Comparison-based design; value is provably optimal I/O
+          without knowing $M$ or $B$.
+    \item \textbf{Architectural lesson.}
+          Bucket-size control ($L < M$) $+$ contiguous layout (arena)
+          $>$ theoretical optimality alone.
+  \end{enumerate}
+\end{frame}
+
+%% ─── SLIDE 18: Thank You ────────────────────────────────────────────────────
+\begin{frame}{Thank You}
+  \begin{center}
+    {\Large Questions?}
+    \vspace{1.5em}
+
+    \begin{tabular}{ll}
+      Report & \texttt{main.tex} / \texttt{main.pdf} \\
+      Slides & \texttt{string\_sorting\_beamer.tex} \\
+      Code   & \texttt{cpp/src/algorithms/} \\
+      Analysis & \texttt{Analysis/cache\_aware\_analysis.py} \\
+    \end{tabular}
+    \vspace{1.5em}
+
+    \textbf{Kausheya Roy} \quad \textbf{Harshit Lalwani}\\
+    AlgoEngineering $\cdot$ May 2026
+  \end{center}
+\end{frame}
+
+\end{document}

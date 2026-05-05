@@ -1,0 +1,13 @@
+algorithm,dataset,N,l1_miss_rate,llc_miss_rate
+std::sort,random,10000,,
+std::sort,random,100000,,
+std::sort,random,1000000,,
+std::sort,wiki_random,10000,,
+std::sort,wiki_random,100000,,
+std::sort,wiki_random,1000000,,
+c_burstsort,random,10000,,
+c_burstsort,random,100000,,
+c_burstsort,random,1000000,,
+c_burstsort,wiki_random,10000,,
+c_burstsort,wiki_random,100000,,
+c_burstsort,wiki_random,1000000,,
