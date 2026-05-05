@@ -6,6 +6,7 @@ algorithms = [
     "std::sort",
     "multikey_quicksort",
     "burstsort",
+    "c_burstsort",
     "msd_radix_sort",
     "lazy_funnelsort"
 ]

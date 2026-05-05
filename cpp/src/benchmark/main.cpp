@@ -3,6 +3,7 @@
 #include <vector>
 #include <string>
 #include <random>
+#include <cstdlib>
 #include <chrono>
 #include <functional>
 #include <algorithm>
@@ -46,6 +47,68 @@ std::vector<std::string> generate_dataset(size_t count, int seed, bool prefix_he
     return dataset;
 }
 
+static std::ifstream open_dataset_or_exit(const std::string& filepath) {
+    std::ifstream file(filepath);
+    if (!file.is_open()) {
+        std::cerr << "Error: Could not open " << filepath << "!\n";
+        std::cerr << "Make sure you ran download_data.py first.\n";
+        std::exit(1);
+    }
+    return file;
+}
+
+std::vector<std::string> load_wiki_random_dataset(const std::string& filepath, size_t count, int seed) {
+    std::vector<std::string> dataset;
+    dataset.reserve(count);
+
+    if (count == 0) {
+        return dataset;
+    }
+
+    std::ifstream file = open_dataset_or_exit(filepath);
+    std::mt19937 rng(seed);
+    std::string line;
+    size_t seen = 0;
+
+    while (std::getline(file, line)) {
+        if (line.empty()) {
+            continue;
+        }
+
+        if (dataset.size() < count) {
+            dataset.push_back(line);
+        } else {
+            std::uniform_int_distribution<size_t> dist(0, seen);
+            size_t pick = dist(rng);
+            if (pick < count) {
+                dataset[pick] = line;
+            }
+        }
+        ++seen;
+    }
+
+    std::shuffle(dataset.begin(), dataset.end(), rng);
+    return dataset;
+}
+
+std::vector<std::string> load_wiki_heavy_dataset(const std::string& filepath, size_t count, size_t min_length, int seed) {
+    std::vector<std::string> dataset;
+    dataset.reserve(count);
+
+    std::ifstream file = open_dataset_or_exit(filepath);
+    std::mt19937 rng(seed);
+    std::string line;
+
+    while (std::getline(file, line) && dataset.size() < count) {
+        if (line.size() >= min_length) {
+            dataset.push_back(line);
+        }
+    }
+
+    std::shuffle(dataset.begin(), dataset.end(), rng);
+    return dataset;
+}
+
 using SortFunc = std::function<void(std::vector<std::string>&)>;
 
 struct BenchmarkResult {
@@ -76,7 +139,7 @@ BenchmarkResult run_benchmark(const std::string& dataset_name, size_t count, int
 
 int main(int argc, char* argv[]) {
     std::vector<BenchmarkResult> results;
-    std::vector<size_t> sizes = {10000, 50000, 100000};
+    std::vector<size_t> sizes = {100000, 1000000, 5000000};    
     std::vector<int> seeds = {0, 1, 2};
     
     std::string target_algo = "";
@@ -90,14 +153,20 @@ int main(int argc, char* argv[]) {
         {"std::sort", baselines::std_sort},
         {"multikey_quicksort", baselines::multikey_quicksort},
         {"burstsort", [](std::vector<std::string>& a) { cache_aware::burstsort(a); }},
+        {"c_burstsort", [](std::vector<std::string>& a) { cache_aware::c_burstsort(a); }},
         {"msd_radix_sort", cache_aware::msd_radix_sort},
         {"lazy_funnelsort", cache_oblivious::lazy_funnelsort}
     };
     
+    const std::string wiki_path = "../../data/dataset_wiki.txt";
+    const size_t wiki_min_length = 20;
+
     for (size_t count : sizes) {
         for (int seed : seeds) {
             auto random_data = generate_dataset(count, seed, false);
             auto prefix_data = generate_dataset(count, seed, true);
+            auto wiki_random = load_wiki_random_dataset(wiki_path, count, seed);
+            auto wiki_heavy = load_wiki_heavy_dataset(wiki_path, count, wiki_min_length, seed);
             
             for (const auto& algo : algorithms) {
                 if (!target_algo.empty() && algo.first != target_algo) continue;
@@ -107,12 +176,18 @@ int main(int argc, char* argv[]) {
                 
                 std::cout << "Running " << algo.first << " on prefix_heavy dataset (size=" << count << ")" << std::endl;
                 results.push_back(run_benchmark("prefix_heavy", count, seed, algo.first, algo.second, prefix_data));
+
+                std::cout << "Running " << algo.first << " on wiki_random dataset (size=" << count << ")" << std::endl;
+                results.push_back(run_benchmark("wiki_random", count, seed, algo.first, algo.second, wiki_random));
+
+                std::cout << "Running " << algo.first << " on wiki_heavy dataset (size=" << count << ")" << std::endl;
+                results.push_back(run_benchmark("wiki_heavy", count, seed, algo.first, algo.second, wiki_heavy));
             }
         }
     }
     
     if (target_algo.empty()) {
-        std::ofstream out("../Analysis/results.csv");
+        std::ofstream out("../../Analysis/results.csv");
         out << "dataset,count,seed,algorithm,elapsed_seconds,sorted_correctly,total_length\n";
         for (const auto& r : results) {
             out << r.dataset << "," << r.count << "," << r.seed << "," << r.algorithm << "," 

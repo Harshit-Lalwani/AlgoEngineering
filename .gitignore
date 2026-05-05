@@ -1,0 +1,18 @@
+# Build artifacts
+cpp/build/
+a.out
+*.o
+*.d
+*.out
+
+# Data outputs
+*.csv
+
+# Datasets
+/data/dataset_wiki.txt
+
+# Python cache
+__pycache__/
+
+# OS files
+.DS_Store

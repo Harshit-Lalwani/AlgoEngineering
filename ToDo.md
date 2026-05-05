@@ -4,8 +4,8 @@ Based on the algorithm engineering literature critique, here is the roadmap to e
 
 ## Phase 1: Local Implementation (Feasible Immediately)
 - [ ] **Scale up to 1M+ strings:** Add larger dataset sizes (e.g., `1,000,000`) to the benchmarking suite for runtime analysis to observe the critical crossover point where burstsort begins to dominate.
-- [ ] **Real-world Datasets:** Write an ingest script to download and use real-world corpuses (e.g., Project Gutenberg dictionary, Wikipedia titles, web URLs) which have vastly different prefix distributions than synthetic data.
-- [ ] **Implement C-Burstsort:** Write a C++ variant of burstsort that copies string characters directly into contiguous `char` arrays, demonstrating the spatial-locality improvement over arrays of string pointers.
+- [x] **Real-world Datasets:** Write an ingest script to download and use real-world corpuses (e.g., Project Gutenberg dictionary, Wikipedia titles, web URLs) which have vastly different prefix distributions than synthetic data.
+- [x] **Implement C-Burstsort:** Write a C++ variant of burstsort that copies string characters directly into contiguous `char` arrays, demonstrating the spatial-locality improvement over arrays of string pointers.
 - [ ] **Throughput Metrics & Scaling Plots:** Calculate sorting throughput (MB/s) and update the Jupyter notebooks to include log-log plots of Wall-clock Time vs. N (to demonstrate empirical $O(N \log N)$ scaling).
 - [ ] **Parameter Sweeps:**
     - Sweep string lengths and alphabet sizes in the data generator.
