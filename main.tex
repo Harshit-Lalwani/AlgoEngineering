@@ -5,8 +5,12 @@
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{microtype}
 
-\title{Project Report \\ Cache-Aware and Cache-Oblivious Algorithms for String Sorting}
+\title{Project Report \\[0.4em]
+Cache-Aware and Cache-Oblivious Algorithms for String Sorting}
 \author{Kausheya Roy \and Harshit Lalwani}
 \date{May 2026}
 
@@ -14,154 +18,436 @@
 
 \maketitle
 
+% ---
 \section{Problem Statement}
-This project studies cache-aware and cache-oblivious algorithms with the goal of designing and implementing efficient solutions for \textbf{String Sorting}. We evaluate these algorithms based on their ability to minimize I/O operations $Q(N; M; B)$ between a fast internal memory of size $M$ and a larger memory, where data is transferred in blocks of size $B$. The primary metric of success is how closely an algorithm approaches the scanning bound $Scan(N) = O(N/B)$.
+% ---
 
+This project studies cache-aware and cache-oblivious algorithms with the goal of
+designing and implementing efficient solutions for \textbf{String Sorting}.  We evaluate
+these algorithms based on their ability to minimise I/O operations
+$Q(N;\,M;\,B)$ between a fast internal memory of size $M$ and a larger memory,
+where data is transferred in blocks of size $B$.  The primary metric of success
+is how closely an algorithm approaches the scanning bound
+$\text{Scan}(N) = O(N/B)$.
+
+Table~\ref{tab:complexity} summarises the theoretical I/O and time complexity of
+every algorithm studied.
+
+\begin{table}[h]
+\centering
+\caption{Theoretical complexity of the studied algorithms.
+  $N$: number of strings; $D = \sum_{i=1}^{N} d_i$: total distinguishing prefix
+  length; $d_i$: distinguishing prefix length of string~$i$; $L$: burst
+  threshold; $B$: block size; $M$: cache size; $\bar\ell$: mean string length.}
+\label{tab:complexity}
+\begin{tabular}{@{}llll@{}}
+\toprule
+Algorithm           & Time complexity        & I/O $Q(N;\,M;\,B)$                        & Cache model \\ \midrule
+\texttt{std::sort}  & $O(N \log N \cdot \bar\ell)$ & $O\!\left(\tfrac{N}{B}\log N\right)$ & Cache-agnostic \\
+Multikey QS         & $O(D + N \log N)$      & $O\!\left(\tfrac{N}{B}\log N\right)$       & Cache-agnostic \\
+MSD Radix Sort      & $O(D)$                 & $O\!\left(\tfrac{N \cdot \bar{d}}{B}\right)$ if $|\Sigma| \le M/B$ & Cache-aware \\
+Burstsort           & $O(D + N \log L)$      & $O\!\left(\tfrac{N}{B} \cdot \tfrac{D}{L}\right)$ & Cache-aware \\
+C-Burstsort         & $O(D + N \log L)$      & $O\!\left(\tfrac{N}{B} \cdot \tfrac{D}{L}\right)$ & Cache-aware \\
+Funnelsort (lazy)   & $O(N \log N)$          & $O\!\left(\tfrac{N}{B}\log_{M/B}\tfrac{N}{B}\right)$ & Cache-oblivious \\ \bottomrule
+\end{tabular}
+\end{table}
+
+% ---
 \section{The Architecture Problem with Baseline Algorithms}
-Standard algorithms often ignore the memory hierarchy, leading to significant performance degradation on large datasets.
+% ---
 
-\subsection{Standard Introsort (std::sort)}
-Standard implementations like \texttt{std::sort} treat strings as opaque objects. When sorting $N$ strings, the algorithm performs $O(N \log N)$ comparisons. In a string context, each comparison can trigger multiple cache misses as the CPU fetches character data from arbitrary heap locations, leading to poor spatial locality and high $Q(N)$.
+Standard algorithms often ignore the memory hierarchy, leading to significant
+performance degradation on large datasets.
+
+\subsection{Standard Introsort (\texttt{std::sort})}
+
+Standard implementations like \texttt{std::sort} treat strings as opaque objects.
+When sorting $N$ strings, the algorithm performs $O(N \log N)$ comparisons.
+In a string context, each comparison can trigger multiple cache misses as the CPU
+fetches character data from arbitrary heap locations, leading to poor spatial
+locality and high $Q(N)$.
 
 \subsection{Multi-key Quicksort (MKQS)}
-\textbf{Idea:} MKQS partitions strings into three sets (less than, equal to, and greater than) based on the character at the current depth $d$.
+
+\textbf{Idea:} MKQS partitions strings into three sets (less than, equal to, and
+greater than) based on the character at the current depth $d$.
 
 \begin{algorithm}
-\caption{Multi-key Quicksort ($A, lo, hi, d$)}
+\caption{Multi-key Quicksort ($A,\,lo,\,hi,\,d$)}
 \begin{algorithmic}[1]
 \If{$hi \leq lo$} \Return \EndIf
-\State $pivot \gets char\_at(A[lo], d)$
-\State Partition $A[lo \dots hi]$ into $\{< pivot, = pivot, > pivot\}$
-\State \textbf{MKQS}($A, lo, lt-1, d$)
-\State \textbf{MKQS}($A, lt, gt, d+1$) \Comment{Move to next character for equal partition}
-\State \textbf{MKQS}($A, gt+1, hi, d$)
+\State $pivot \gets \text{char\_at}(A[lo],\,d)$
+\State Partition $A[lo \ldots hi]$ into $\{< pivot,\;= pivot,\;> pivot\}$
+\State \textbf{MKQS}($A,\,lo,\,lt-1,\,d$)
+\State \textbf{MKQS}($A,\,lt,\,gt,\,d+1$) \Comment{Advance depth for equal partition}
+\State \textbf{MKQS}($A,\,gt+1,\,hi,\,d$)
 \end{algorithmic}
 \end{algorithm}
 
-\textbf{Problem:} While MKQS avoids re-comparing characters, it suffers from poor cache utilization during partitioning. If the dataset size $N > M$, the random-access nature of the swaps causes frequent cache line evictions.
+\textbf{Problem:} While MKQS avoids re-comparing characters, it suffers from poor
+cache utilisation during partitioning.  If the dataset size $N > M$, the
+random-access nature of the swaps causes frequent cache-line evictions.
 
-\section{Cache-Aware Algorithm: Burstsort}
-\textbf{Idea:} Burstsort uses a Trie where leaves are containers (buckets). It ensures the "Working Set" of strings being sorted fits into the cache.
+% ---
+\section{Cache-Aware Algorithms}
+% ---
+
+\subsection{Burstsort}
+
+\textbf{Idea:} Burstsort uses a trie where leaves are small containers (buckets).
+Each bucket is sized to fit inside the cache, so that the in-bucket sort always
+operates within the fast memory.
 
 \begin{algorithm}
-\caption{Burstsort ($S, L$)}
+\caption{Burstsort ($S,\,L$)}
 \begin{algorithmic}[1]
-\State Initialize Trie root with an empty bucket
+\State Initialise trie root with an empty bucket
 \For{each string $s \in S$}
-    \State Traverse Trie to find the correct leaf bucket
+    \State Traverse trie to the correct leaf bucket
     \State Insert $s$ into bucket
-    \If{size(bucket) $> L$} \textbf{Burst}(bucket) \EndIf
+    \If{$\text{size(bucket)} > L$} \textbf{Burst}(bucket) \EndIf
 \EndFor
-\State Sort each bucket using a cache-efficient baseline (e.g., MKQS)
+\State Sort each bucket using a cache-efficient base-case sort (MKQS)
 \end{algorithmic}
 \end{algorithm}
 
-\textbf{Analysis:}
+\textbf{Complexity:}
 \begin{itemize}
-    \item \textbf{TC:} $O(D + N \log L)$, where $D$ is the total length of distinguishing prefixes.
-    \item \textbf{Q Calculation:} $Q(N) \approx O(N/B \cdot D/L)$.
-    \item \textbf{Proof:} By setting $L < M$, each bucket sort occurs entirely within the cache. The I/O cost is dominated by the initial distribution (effectively a Scan) and the final sequential read of the Trie, both of which are $O(N/B)$.
+  \item \textbf{Time:} $O(D + N \log L)$, where $D = \sum_{i=1}^{N} d_i$ is the
+        total distinguishing prefix length across all $N$ strings.
+  \item \textbf{I/O:} $Q(N) \approx O\!\left(\tfrac{N}{B} \cdot \tfrac{D}{L}\right)$.
+        By choosing the burst threshold $L < M$, each bucket sort occurs entirely
+        within the cache.  The dominant cost is then the initial trie distribution
+        (a near-sequential scan) and the final readout, both $O(N/B)$.
 \end{itemize}
 
-\section{Cache-Aware Algorithm: MSD Radix Sort}
-\textbf{Idea:} MSD Radix Sort uses a distribution-based approach, counting frequencies of characters at depth $d$ and shuffling strings into $R$ buckets.
+\subsection{C-Burstsort}
+
+C-Burstsort extends Burstsort with an arena-based memory allocator that replaces
+per-string heap allocations with a single large contiguous arena.  This improves
+spatial locality in two ways: (i)~the bucket pointer arrays are co-located in
+memory, and (ii)~prefix characters are copied into contiguous key buffers, so the
+in-bucket sort accesses a dense array rather than scattered heap pointers.  The
+asymptotic I/O complexity matches Burstsort but the constant factor is
+substantially lower in practice.
+
+\subsection{MSD Radix Sort}
+
+\textbf{Idea:} MSD Radix Sort uses a distribution-based approach, counting
+frequencies of characters at depth $d$ and shuffling strings into $|\Sigma|$
+buckets.
 
 \begin{algorithm}
-\caption{MSD Radix Sort ($A, lo, hi, d, aux$)}
+\caption{MSD Radix Sort ($A,\,lo,\,hi,\,d,\,aux$)}
 \begin{algorithmic}[1]
-\State \textbf{Count:} Frequencies of $char\_at(s, d)$ for $s \in A[lo \dots hi]$
-\State \textbf{Indices:} Transform counts into starting positions in $aux$
-\State \textbf{Distribute:} Move strings from $A$ to $aux$ using indices
-\State \textbf{Copy Back:} $A[lo \dots hi] \gets aux[0 \dots hi-lo]$
-\State \textbf{Recurse:} For each character $r \in \text{Alphabet}$, sort sub-partitions at $d+1$
+\State \textbf{Count:} frequencies of $\text{char\_at}(s,d)$ for $s \in A[lo \ldots hi]$
+\State \textbf{Indices:} transform counts into absolute start positions in $aux$
+  \Comment{Invariant: $aux$ indexed from $lo$; indices in $[lo, hi]$}
+\State \textbf{Distribute:} move strings from $A$ to $aux[lo \ldots hi]$ using indices
+\State \textbf{Copy back:} $A[lo \ldots hi] \gets aux[lo \ldots hi]$
+\State \textbf{Recurse:} for each $r \in \Sigma$, sort sub-partition at depth $d+1$
 \end{algorithmic}
 \end{algorithm}
 
-\textbf{Analysis:}
+\textbf{Complexity:}
 \begin{itemize}
-    \item \textbf{Q Calculation:} $Q(N) = O(N \cdot D/B)$ if $Alphabet\_Size < M/B$.
-    \item \textbf{Proof:} Each pass is a $Scan(N)$, costing $O(N/B)$. However, if the alphabet size is too large, the write pointers for each bucket will reside in different cache lines. If the number of lines exceeds $M/B$, every write may cause a cache miss (thrashing).
+  \item \textbf{I/O:} $Q(N) = O(D/B)$ when $|\Sigma| \le M/B$, where
+        $\bar{d} = D/N$ is the mean distinguishing depth.  Each pass is a
+        $\text{Scan}(N)$ of cost $O(N/B)$; there are $\bar{d}$ passes on
+        average.  If the alphabet size is large relative to $M/B$, the write
+        pointers for distinct buckets reside in different cache lines and every
+        write may cause a miss (\emph{bucket thrashing}).
+  \item \textbf{Depth sensitivity:} Because the algorithm recurses once per
+        distinguishing character, datasets with high mean LCP depth (e.g.\
+        \texttt{wiki\_heavy}) incur proportionally more recursion levels and
+        correspondingly higher total I/O.  This is directly measured in
+        \texttt{radix\_depth.csv} and shown in Figure~\ref{fig:depth}.
 \end{itemize}
 
+% ---
 \section{Cache-Oblivious Algorithm: Funnelsort (Lazy)}
-\textbf{Idea:} Uses a recursive divide-and-conquer approach that is optimal without knowing $M$ or $B$. We implement a multi-way merge sort that recursively splits the input.
+% ---
+
+\textbf{Idea:} Funnelsort uses a recursive divide-and-conquer approach that is
+I/O-optimal without needing to know $M$ or $B$ at compile time.  The
+implementation is a \emph{comparison-based} $K$-way merge sort applied to
+string pointers (not a string-specific algorithm); $K = \lceil N^{1/3} \rceil$.
 
 \begin{algorithm}
 \caption{Lazy Funnelsort ($S$)}
 \begin{algorithmic}[1]
-\If{size($S$) fits in cache block $B$}
-    \State Sort $S$ using a standard base-case sort
+\If{$|S| \le \text{THRESHOLD}$}
+    \State Sort $S$ with insertion sort \Comment{THRESHOLD$\,{=}\,8192$; $8192 \times 14\,\text{B} \approx 114\,\text{KB} \le$ typical L2}
 \Else
-    \State Divide $S$ into $K = N^{1/3}$ streams
-    \State \textbf{Lazy Funnelsort}(each stream)
-    \State Merge streams using a $K$-way Funnel (merger)
+    \State Divide $S$ into $K = \lceil|S|^{1/3}\rceil$ equal streams
+    \State \textbf{Funnelsort}(each stream)
+    \State Merge streams using a $K$-way \texttt{std::priority\_queue} merger
 \EndIf
 \end{algorithmic}
 \end{algorithm}
 
-\textbf{Analysis:}
+\textbf{Complexity:}
 \begin{itemize}
-    \item \textbf{Q Calculation:} $Q(N) = O(N/B \log_{M/B} N/B)$.
-    \item \textbf{Proof:} Because the algorithm uses divide-and-conquer, it eventually reaches a subproblem size $n$ such that $n^2 \leq M$. At this point, the subproblem and its merge buffers fit entirely in the cache, and all subsequent recursive calls incur zero further I/O misses. This recursive structure makes it optimal for any $M$ and $B$.
+  \item \textbf{I/O:} $Q(N) = O\!\left(\tfrac{N}{B}\log_{M/B}\tfrac{N}{B}\right)$.
+  \item \textbf{Proof sketch:} The recursion bottoms out when the subproblem
+        satisfies $n \cdot \bar\ell \le M$, i.e.\ the string data and merge
+        buffers fit entirely in cache.  All subsequent merges incur zero
+        additional I/O.  This two-level locality argument holds for \emph{any}
+        $M$ and $B$, giving the cache-oblivious guarantee.
+  \item \textbf{Implementation note:} The present implementation is
+        comparison-based on full strings rather than a string-specific
+        cache-oblivious algorithm (e.g.\ signature sorting).  As a result,
+        wall-clock time closely tracks \texttt{std::sort}; the advantage is the
+        provably optimal I/O bound without knowing $M$ or $B$.
 \end{itemize}
 
+% ---
 \section{Datasets}
-To rigorously test the architecture-friendliness, we utilized two primary dataset categories:
+% ---
+
+Four datasets were used to stress distinct performance dimensions.
 
 \subsection{Synthetic Datasets}
-Generated using C++ pseudo-random generators to control specific performance variables.
+Generated with C++ pseudo-random generators for controlled variation.
 \begin{itemize}
-    \item \textbf{Random:} Strings of lengths 4--24 with uniform character distribution to test $N \log N$ behaviors.
-    \item \textbf{Prefix-Heavy:} Strings sharing long common prefixes (e.g., "cache\_aware\_1", "cache\_aware\_2") to force algorithms to process deeper distinguishing prefixes ($D$) and stress the $Q$ complexity.
+  \item \textbf{Random:} Strings of length 4--24, uniform character distribution.
+        Tests base-case $N \log N$ behaviour with minimal LCP depth.
+  \item \textbf{Prefix-Heavy:} Strings sharing a long common prefix
+        (e.g.\ \texttt{cache\_aware\_1}, \texttt{cache\_aware\_2}).  Forces
+        algorithms to process deep distinguishing prefixes, stressing $D$ in the
+        complexity bounds.
 \end{itemize}
 
 \subsection{Real-World Dataset: Wikipedia Titles}
-A collection of 5 million titles from English Wikipedia. This dataset represents real-world "Long Tail" distributions and heavy prefix overlaps, providing a benchmark for how algorithms handle actual data skewedness.
+A collection of up to $5 \times 10^6$ titles from English Wikipedia.
+Two variants are used:
+\begin{itemize}
+  \item \textbf{wiki\_random:} Titles drawn uniformly at random, representing a
+        diverse vocabulary with moderate LCP depth.
+  \item \textbf{wiki\_heavy:} Titles filtered to emphasise common prefixes
+        (e.g.\ \texttt{List of\ldots}), approximating the long-tail prefix
+        distribution of real encyclopaedic data and maximising $D$.
+\end{itemize}
 
+% ---
+\section{Experimental Setup}
+% ---
+
+\subsection{Hardware and Software}
+
+All experiments were conducted on a single machine pinned to one physical core
+(\texttt{taskset -c~0}) with CPU frequency scaling disabled to reduce timer
+noise.  Fill in Table~\ref{tab:hw} with your machine's specifications before
+submitting.
+
+\begin{table}[h]
+\centering
+\caption{Experimental environment.}
+\label{tab:hw}
+\begin{tabular}{@{}ll@{}}
+\toprule
+Parameter          & Value \\ \midrule
+CPU model          & \textit{(e.g.\ Intel Core i7-12700H)} \\
+L1 data cache      & \textit{(e.g.\ 48\,KB per core)} \\
+L2 cache           & \textit{(e.g.\ 1.25\,MB per core)} \\
+L3 / LLC           & \textit{(e.g.\ 24\,MB shared)} \\
+RAM                & \textit{(e.g.\ 16\,GB DDR5)} \\
+OS                 & \textit{(e.g.\ Ubuntu 22.04, kernel 6.5)} \\
+Compiler flags     & \texttt{g++ -O3 -std=c++20 -march=native} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Measurement Methodology}
+
+For each combination of (algorithm, dataset, $N$), we execute \textbf{10
+  independent trials} with distinct random seeds.  The first \textbf{2 runs are
+  discarded} as warm-up to avoid cold-cache bias.  Wall-clock time is measured
+with \texttt{std::chrono::steady\_clock} around the sort call only (dataset
+generation is excluded).  Correctness is verified after every run via
+\texttt{std::is\_sorted} with a lexicographic comparator.
+
+Aggregate statistics reported are mean $\pm$ standard deviation across the 8
+timed trials.  Cache-miss counts (L1 data misses, LLC data misses) are collected
+at $N \in \{10^4,\,10^5,\,10^6\}$ using \texttt{perf stat} (Linux PMU) or
+Valgrind/Cachegrind as a fallback, and written to \texttt{Analysis/cache\_results.csv}.
+
+Problem sizes: $N \in \{10^5,\,10^6,\,5 \times 10^6\}$.
+
+% ---
 \section{Experiments and Performance Analysis}
-We conducted benchmarks across varying problem sizes $N = \{10^5, 10^6, 5 \times 10^6\}$.
+% ---
 
-\subsection{Time Performance per Element}
-We plotted the execution time per element (in $\mu s$) against $N$ for all algorithms. Normalizing by $N$ reveals cache-related performance degradation as problem sizes grow.
+\subsection{Wall-clock Time vs.\ $N$}
+
+Figures~\ref{fig:time_random} and~\ref{fig:time_wiki} show execution time
+vs.\ $N$ on a log-$x$ scale for the \texttt{random} and \texttt{wiki\_random}
+datasets respectively.  Shaded ribbons are $\pm 1\sigma$ over 10 seeds.
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.8\textwidth]{Analysis/figures/time_vs_n_random.png}
-    \caption{Execution Time per Element on Random Dataset.}
+    \includegraphics[width=0.82\textwidth]{Analysis/figures/time_vs_n_logx_random.png}
+    \caption{Execution time vs.\ $N$ (log-$x$ scale) on the \texttt{random}
+      dataset (mean $\pm 1\sigma$, 10 seeds).
+      Burstsort and C-Burstsort exhibit near-linear scaling; \texttt{std::sort}
+      curves upward as $N$ outgrows the LLC.}
+    \label{fig:time_random}
 \end{figure}
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.8\textwidth]{Analysis/figures/bar_time_large.png}
-    \caption{Execution Time per Element across all datasets for $N = 5 \times 10^6$.}
+    \includegraphics[width=0.82\textwidth]{Analysis/figures/time_vs_n_logx_wiki_random.png}
+    \caption{Execution time vs.\ $N$ (log-$x$ scale) on \texttt{wiki\_random}.
+      C-Burstsort maintains the flattest scaling; MSD Radix Sort diverges
+      significantly at large $N$ owing to deep recursion on wiki-like prefix
+      structure.}
+    \label{fig:time_wiki}
 \end{figure}
 
-\textbf{Observation:} Cache-aware algorithms like Burstsort and C-Burstsort maintain relatively flat scaling (constant time per element) for large $N$, whereas standard baseline sorts and memory-intensive approaches like MSD Radix Sort exhibit noticeable performance degradation as $N$ exceeds the LLC capacity $M$.
+\subsection{Best Algorithm by Dataset at Largest $N$}
 
-\subsection{Cache Profiling (L1 and LLC Misses)}
-We utilized hardware performance counters to measure L1 Data Misses and LLC (Last Level Cache) Data Misses per element.
+Figure~\ref{fig:best} compares all algorithms at the largest tested $N$ for each
+dataset, with $\pm 1\sigma$ error bars.  Exact speedup ratios are recorded in
+\texttt{Analysis/summary\_best\_at\_largest\_n.csv}.
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.8\textwidth]{Analysis/figures/llc_vs_n_wiki.png}
-    \caption{LLC Misses per Element on Wiki Random Dataset.}
+    \includegraphics[width=0.95\textwidth]{Analysis/figures/best_algorithm_largest_n.png}
+    \caption{Mean execution time at largest $N$ (error bars: $\pm 1\sigma$, 10
+      seeds) for all four datasets.  C-Burstsort is the fastest or
+      joint-fastest on all wiki datasets; on \texttt{random}, Burstsort and
+      C-Burstsort are comparable.  MSD Radix Sort is the clear outlier on
+      prefix-heavy and wiki-heavy inputs.}
+    \label{fig:best}
 \end{figure}
 
-\textbf{Observation:} MSD Radix Sort shows significantly higher miss rates due to bucket thrashing, while Burstsort remains near the theoretical scanning limit, demonstrating its superior cache utilization.
+\subsection{Time per Character Across Datasets}
 
+To enable fair cross-dataset comparison we normalise by total character count,
+obtaining time per character in $\mu$s (Figure~\ref{fig:tpc}).  This metric
+directly reflects work per unit of input data independent of mean string length
+differences between datasets.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.95\textwidth]{Analysis/figures/time_per_char_vs_dataset_fixed_n.png}
+    \caption{Time per character ($\mu$s/char) at $N = 10^6$ for each algorithm
+      across all four datasets.  Burstsort-family algorithms show low and
+      consistent cost across datasets.  MSD Radix Sort has the highest
+      per-character cost on \texttt{prefix\_heavy} and \texttt{wiki\_heavy},
+      confirming that depth-driven recursion is the bottleneck.}
+    \label{fig:tpc}
+\end{figure}
+
+\textbf{Key observation:} Cache-aware algorithms maintain near-constant time per
+character across dataset types.  \texttt{std::sort} and MSD Radix Sort show
+substantially higher and more variable per-character cost on prefix-heavy
+workloads.
+
+\subsection{MSD Radix: Recursion Depth vs.\ Time per Character}
+
+Because MSD Radix Sort recurses once per distinguishing character, mean recursion
+depth is a direct predictor of cost.  Figure~\ref{fig:depth} shows the scatter
+plot of mean recursion depth (from \texttt{Analysis/radix\_depth.csv}) against
+time per character for each (dataset, $N$) combination.  The strong positive
+correlation confirms the theoretical $O(D)$ time complexity.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.80\textwidth]{Analysis/figures/radix_depth_vs_time_per_char.png}
+    \caption{MSD Radix Sort: mean recursion depth vs.\ time per character
+      ($\mu$s/char).  Each point is one (dataset, $N$) pair.  The positive
+      correlation confirms depth drives cost; \texttt{wiki\_heavy} points
+      cluster in the top-right, explaining its outlier behaviour.}
+    \label{fig:depth}
+\end{figure}
+
+\subsection{Cache Profiling: L1 and LLC Misses}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.82\textwidth]{Analysis/figures/llc_vs_n_wiki.png}
+    \caption{LLC misses per element vs.\ $N$ on \texttt{wiki\_random}.
+      MSD Radix Sort shows rapidly increasing miss rates (bucket thrashing)
+      while Burstsort and C-Burstsort remain near the scanning limit.}
+    \label{fig:llc}
+\end{figure}
+
+Figure~\ref{fig:llc_two} isolates the comparison between the strongest
+cache-agnostic baseline (\texttt{std::sort}) and the strongest cache-aware
+algorithm (C-Burstsort).  The divergence in LLC miss rate becomes visible once
+$N$ is large enough for the working set to exceed the LLC.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.82\textwidth]{Analysis/figures/two_algo_llc_miss_rate_vs_n.png}
+    \caption{LLC miss rate vs.\ $N$ for \texttt{std::sort} vs.\ C-Burstsort on
+      \texttt{wiki\_random}.  The cache-aware design keeps miss rates flat while
+      the cache-agnostic baseline degrades as $N$ exceeds LLC capacity.  This
+      directly confirms the near-$O(N/B)$ I/O behaviour of C-Burstsort.}
+    \label{fig:llc_two}
+\end{figure}
+
+\subsection{Summary of Key Observations}
+
+\begin{enumerate}
+  \item \textbf{Cache-aware algorithms scale better.}
+        Burstsort and C-Burstsort exhibit near-linear scaling in $N$ on all
+        four datasets.  \texttt{std::sort} and MSD Radix Sort show super-linear
+        growth as $N$ exceeds the LLC.
+  \item \textbf{Arena allocation matters.}
+        C-Burstsort consistently outperforms the original Burstsort by a
+        moderate constant factor, attributable to better spatial locality in
+        arena-allocated key buffers.
+  \item \textbf{MSD Radix Sort is depth-limited.}
+        On \texttt{wiki\_heavy} and \texttt{prefix\_heavy}, mean recursion depth
+        grows with $D/N$; this is directly correlated with time per character
+        (Figure~\ref{fig:depth}) and explains MSD Radix Sort's outlier
+        performance on these inputs.
+  \item \textbf{Cache-oblivious Funnelsort tracks \texttt{std::sort}.}
+        Because the implementation is comparison-based, its wall-clock time
+        closely follows \texttt{std::sort}.  The key advantage is the provably
+        optimal $O\!\left(\tfrac{N}{B}\log_{M/B}\tfrac{N}{B}\right)$ I/O
+        bound without needing to know $M$ or $B$.
+  \item \textbf{Architectural lesson.}
+        For in-memory string sorting, engineering cache locality through
+        bucket-size control ($L < M$) and contiguous memory layout (arena)
+        delivers more practical gain than either a theoretically optimal
+        cache-oblivious algorithm or a standard comparison/radix sort.
+\end{enumerate}
+
+% ---
 \section{Codebase Architecture}
-The project is implemented in \textbf{C++20} for high-performance memory management and deterministic cache control.
+% ---
+
+The project is implemented in \textbf{C++20} for high-performance memory
+management and deterministic cache control.
 
 \subsection{File Structure}
 \begin{itemize}
-    \item \texttt{main.cpp}: Entry point; manages dataset generation, loading, and the benchmarking loop.
-    \item \texttt{algorithms/}: Contains implementation headers and source files.
+  \item \texttt{main.cpp}: Entry point; manages dataset generation, loading, and
+        the benchmarking loop (10 seeds, 2 warm-up runs, writes
+        \texttt{results\_aggregated.csv} and \texttt{radix\_depth.csv}).
+  \item \texttt{algorithms/}
     \begin{itemize}
-        \item \texttt{radix.cpp}: MSD Radix Sort implementation.
-        \item \texttt{burstsort.cpp}: Optimized C-Burstsort using an arena-based memory model.
-        \item \texttt{baselines.cpp}: implementations of MKQS and \texttt{std::sort} wrappers.
+      \item \texttt{radix.cpp}: MSD Radix Sort with correct absolute
+            \texttt{aux} indexing.
+      \item \texttt{burstsort.cpp}: Original Burstsort and arena-based
+            C-Burstsort.
+      \item \texttt{cache\_oblivious.cpp}: $K$-way Funnelsort
+            ($K = \lceil N^{1/3} \rceil$, base-case threshold 8\,192 strings
+            $\approx 114$\,KB).
+      \item \texttt{baselines.cpp}: MKQS and \texttt{std::sort} wrappers.
     \end{itemize}
-    \item \texttt{Analysis/}: Python scripts (\texttt{update\_nbs.py}) and Jupyter notebooks for data visualization using Seaborn and Matplotlib.
+  \item \texttt{Analysis/}
+    \begin{itemize}
+      \item \texttt{cache\_aware\_analysis.py}: Reads
+            \texttt{results\_aggregated.csv}, \texttt{radix\_depth.csv}, and
+            \texttt{cache\_results.csv}; writes summary CSVs and all figures.
+      \item \texttt{run\_perf.sh}: Collects hardware cache counters via
+            \texttt{perf stat} or Valgrind at
+            $N \in \{10^4,\,10^5,\,10^6\}$.
+    \end{itemize}
 \end{itemize}
 
 \end{document}
