@@ -143,10 +143,14 @@ int main(int argc, char* argv[]) {
     std::vector<int> seeds = {0, 1, 2};
     
     std::string target_algo = "";
+    std::string target_dataset = "";
     if (argc > 1) {
         target_algo = argv[1];
         sizes = {10000}; // Reduced size to prevent valgrind OOM
         seeds = {0};      // Only one seed for cache profiling
+        if (argc > 2) {
+            target_dataset = argv[2];
+        }
     }
 
     std::vector<std::pair<std::string, SortFunc>> algorithms = {
@@ -170,18 +174,34 @@ int main(int argc, char* argv[]) {
             
             for (const auto& algo : algorithms) {
                 if (!target_algo.empty() && algo.first != target_algo) continue;
-                
-                std::cout << "Running " << algo.first << " on random dataset (size=" << count << ")" << std::endl;
-                results.push_back(run_benchmark("random", count, seed, algo.first, algo.second, random_data));
-                
-                std::cout << "Running " << algo.first << " on prefix_heavy dataset (size=" << count << ")" << std::endl;
-                results.push_back(run_benchmark("prefix_heavy", count, seed, algo.first, algo.second, prefix_data));
 
-                std::cout << "Running " << algo.first << " on wiki_random dataset (size=" << count << ")" << std::endl;
-                results.push_back(run_benchmark("wiki_random", count, seed, algo.first, algo.second, wiki_random));
+                if (target_dataset.empty() || target_dataset == "random") {
+                    std::cout << "Running " << algo.first << " on random dataset (size=" << count << ")" << std::endl;
+                    auto br = run_benchmark("random", count, seed, algo.first, algo.second, random_data);
+                    std::cout << "PROFILE," << br.algorithm << "," << br.dataset << "," << br.count << "," << br.seed << "," << br.total_length << std::endl;
+                    results.push_back(br);
+                }
 
-                std::cout << "Running " << algo.first << " on wiki_heavy dataset (size=" << count << ")" << std::endl;
-                results.push_back(run_benchmark("wiki_heavy", count, seed, algo.first, algo.second, wiki_heavy));
+                if (target_dataset.empty() || target_dataset == "prefix_heavy") {
+                    std::cout << "Running " << algo.first << " on prefix_heavy dataset (size=" << count << ")" << std::endl;
+                    auto br = run_benchmark("prefix_heavy", count, seed, algo.first, algo.second, prefix_data);
+                    std::cout << "PROFILE," << br.algorithm << "," << br.dataset << "," << br.count << "," << br.seed << "," << br.total_length << std::endl;
+                    results.push_back(br);
+                }
+
+                if (target_dataset.empty() || target_dataset == "wiki_random") {
+                    std::cout << "Running " << algo.first << " on wiki_random dataset (size=" << count << ")" << std::endl;
+                    auto br = run_benchmark("wiki_random", count, seed, algo.first, algo.second, wiki_random);
+                    std::cout << "PROFILE," << br.algorithm << "," << br.dataset << "," << br.count << "," << br.seed << "," << br.total_length << std::endl;
+                    results.push_back(br);
+                }
+
+                if (target_dataset.empty() || target_dataset == "wiki_heavy") {
+                    std::cout << "Running " << algo.first << " on wiki_heavy dataset (size=" << count << ")" << std::endl;
+                    auto br = run_benchmark("wiki_heavy", count, seed, algo.first, algo.second, wiki_heavy);
+                    std::cout << "PROFILE," << br.algorithm << "," << br.dataset << "," << br.count << "," << br.seed << "," << br.total_length << std::endl;
+                    results.push_back(br);
+                }
             }
         }
     }

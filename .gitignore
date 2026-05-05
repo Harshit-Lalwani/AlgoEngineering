@@ -5,9 +5,6 @@ a.out
 *.d
 *.out
 
-# Data outputs
-*.csv
-
 # Datasets
 /data/dataset_wiki.txt
 
