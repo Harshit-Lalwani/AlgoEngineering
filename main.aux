@@ -1,24 +1,51 @@
 \relax 
-\@writefile{toc}{\contentsline {section}{\numberline {1}Problem Statement}{1}{}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {2}The Architecture Problem with Baseline Algorithms}{1}{}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.1}Standard Introsort (std::sort)}{1}{}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.2}Multi-key Quicksort (MKQS)}{1}{}\protected@file@percent }
-\@writefile{loa}{\contentsline {algorithm}{\numberline {1}{\ignorespaces Multi-key Quicksort ($A, lo, hi, d$)}}{2}{}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {3}Cache-Aware Algorithm: Burstsort}{2}{}\protected@file@percent }
-\@writefile{loa}{\contentsline {algorithm}{\numberline {2}{\ignorespaces Burstsort ($S, L$)}}{2}{}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {4}Cache-Aware Algorithm: MSD Radix Sort}{2}{}\protected@file@percent }
-\@writefile{loa}{\contentsline {algorithm}{\numberline {3}{\ignorespaces MSD Radix Sort ($A, lo, hi, d, aux$)}}{3}{}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {5}Cache-Oblivious Algorithm: Funnelsort (Lazy)}{3}{}\protected@file@percent }
-\@writefile{loa}{\contentsline {algorithm}{\numberline {4}{\ignorespaces Lazy Funnelsort ($S$)}}{3}{}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {6}Datasets}{3}{}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {6.1}Synthetic Datasets}{3}{}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {6.2}Real-World Dataset: Wikipedia Titles}{4}{}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {7}Experiments and Performance Analysis}{4}{}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {7.1}Time Performance per Element}{4}{}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Execution Time per Element on Random Dataset.}}{4}{}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {7.2}Cache Profiling (L1 and LLC Misses)}{4}{}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Execution Time per Element across all datasets for $N = 5 \times 10^6$.}}{5}{}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {8}Codebase Architecture}{5}{}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {8.1}File Structure}{5}{}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces LLC Misses per Element on Wiki Random Dataset.}}{6}{}\protected@file@percent }
-\gdef \@abspage@last{6}
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand\HyField@AuxAddToFields[1]{}
+\providecommand\HyField@AuxAddToCoFields[2]{}
+\@writefile{toc}{\contentsline {section}{\numberline {1}Problem Statement}{1}{section.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Theoretical complexity of the studied algorithms. $N$: number of strings; $D = \DOTSB \sum@ \slimits@ _{i=1}^{N} d_i$: total distinguishing prefix length; $d_i$: distinguishing prefix length of string~$i$; $L$: burst threshold; $B$: block size; $M$: cache size; $\bar  \ell $: mean string length.}}{1}{table.1}\protected@file@percent }
+\newlabel{tab:complexity}{{1}{1}{Theoretical complexity of the studied algorithms. $N$: number of strings; $D = \sum _{i=1}^{N} d_i$: total distinguishing prefix length; $d_i$: distinguishing prefix length of string~$i$; $L$: burst threshold; $B$: block size; $M$: cache size; $\bar \ell $: mean string length}{table.1}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {2}The Architecture Problem with Baseline Algorithms}{2}{section.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.1}Standard Introsort (\texttt  {std::sort})}{2}{subsection.2.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.2}Multi-key Quicksort (MKQS)}{2}{subsection.2.2}\protected@file@percent }
+\@writefile{loa}{\contentsline {algorithm}{\numberline {1}{\ignorespaces Multi-key Quicksort ($A,\,lo,\,hi,\,d$)}}{2}{algorithm.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3}Cache-Aware Algorithms}{2}{section.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}Burstsort}{2}{subsection.3.1}\protected@file@percent }
+\@writefile{loa}{\contentsline {algorithm}{\numberline {2}{\ignorespaces Burstsort ($S,\,L$)}}{3}{algorithm.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}C-Burstsort}{3}{subsection.3.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3}MSD Radix Sort}{3}{subsection.3.3}\protected@file@percent }
+\@writefile{loa}{\contentsline {algorithm}{\numberline {3}{\ignorespaces MSD Radix Sort ($A,\,lo,\,hi,\,d,\,aux$)}}{3}{algorithm.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {4}Cache-Oblivious Algorithm: Funnelsort (Lazy)}{4}{section.4}\protected@file@percent }
+\@writefile{loa}{\contentsline {algorithm}{\numberline {4}{\ignorespaces Lazy Funnelsort ($S$)}}{4}{algorithm.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {5}Datasets}{4}{section.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.1}Synthetic Datasets}{4}{subsection.5.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.2}Real-World Dataset: Wikipedia Titles}{5}{subsection.5.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {6}Experimental Setup}{5}{section.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.1}Hardware and Software}{5}{subsection.6.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Experimental environment.}}{5}{table.2}\protected@file@percent }
+\newlabel{tab:hw}{{2}{5}{Experimental environment}{table.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.2}Measurement Methodology}{5}{subsection.6.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {7}Experiments and Performance Analysis}{6}{section.7}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.1}Wall-clock Time vs.\ $N$}{6}{subsection.7.1}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Execution time vs.\ $N$ (log-$x$ scale) on the \texttt  {random} dataset (mean $\pm 1\sigma $, 10 seeds). Burstsort and C-Burstsort exhibit near-linear scaling; \texttt  {std::sort} curves upward as $N$ outgrows the LLC.}}{6}{figure.1}\protected@file@percent }
+\newlabel{fig:time_random}{{1}{6}{Execution time vs.\ $N$ (log-$x$ scale) on the \texttt {random} dataset (mean $\pm 1\sigma $, 10 seeds). Burstsort and C-Burstsort exhibit near-linear scaling; \texttt {std::sort} curves upward as $N$ outgrows the LLC}{figure.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.2}Best Algorithm by Dataset at Largest $N$}{6}{subsection.7.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.3}Time per Character Across Datasets}{6}{subsection.7.3}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Execution time vs.\ $N$ (log-$x$ scale) on \texttt  {wiki\_random}. C-Burstsort maintains the flattest scaling; MSD Radix Sort diverges significantly at large $N$ owing to deep recursion on wiki-like prefix structure.}}{7}{figure.2}\protected@file@percent }
+\newlabel{fig:time_wiki}{{2}{7}{Execution time vs.\ $N$ (log-$x$ scale) on \texttt {wiki\_random}. C-Burstsort maintains the flattest scaling; MSD Radix Sort diverges significantly at large $N$ owing to deep recursion on wiki-like prefix structure}{figure.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.4}MSD Radix: Recursion Depth vs.\ Time per Character}{7}{subsection.7.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.5}Cache Profiling: L1 and LLC Misses}{7}{subsection.7.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.6}Summary of Key Observations}{7}{subsection.7.6}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Mean execution time at largest $N$ (error bars: $\pm 1\sigma $, 10 seeds) for all four datasets. C-Burstsort is the fastest or joint-fastest on all wiki datasets; on \texttt  {random}, Burstsort and C-Burstsort are comparable. MSD Radix Sort is the clear outlier on prefix-heavy and wiki-heavy inputs.}}{8}{figure.3}\protected@file@percent }
+\newlabel{fig:best}{{3}{8}{Mean execution time at largest $N$ (error bars: $\pm 1\sigma $, 10 seeds) for all four datasets. C-Burstsort is the fastest or joint-fastest on all wiki datasets; on \texttt {random}, Burstsort and C-Burstsort are comparable. MSD Radix Sort is the clear outlier on prefix-heavy and wiki-heavy inputs}{figure.3}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Time per character ($\mu $s/char) at $N = 10^6$ for each algorithm across all four datasets. Burstsort-family algorithms show low and consistent cost across datasets. MSD Radix Sort has the highest per-character cost on \texttt  {prefix\_heavy} and \texttt  {wiki\_heavy}, confirming that depth-driven recursion is the bottleneck.}}{9}{figure.4}\protected@file@percent }
+\newlabel{fig:tpc}{{4}{9}{Time per character ($\mu $s/char) at $N = 10^6$ for each algorithm across all four datasets. Burstsort-family algorithms show low and consistent cost across datasets. MSD Radix Sort has the highest per-character cost on \texttt {prefix\_heavy} and \texttt {wiki\_heavy}, confirming that depth-driven recursion is the bottleneck}{figure.4}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {8}Codebase Architecture}{9}{section.8}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {8.1}File Structure}{9}{subsection.8.1}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces MSD Radix Sort: mean recursion depth vs.\ time per character ($\mu $s/char). Each line represents a dataset across different $N$ values. The positive correlation confirms depth drives cost.}}{10}{figure.5}\protected@file@percent }
+\newlabel{fig:depth}{{5}{10}{MSD Radix Sort: mean recursion depth vs.\ time per character ($\mu $s/char). Each line represents a dataset across different $N$ values. The positive correlation confirms depth drives cost}{figure.5}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces LLC misses per element across algorithms for a fixed problem size ($N=10^4$). MSD Radix Sort and C-Burstsort show differing cache behaviours.}}{11}{figure.6}\protected@file@percent }
+\newlabel{fig:llc}{{6}{11}{LLC misses per element across algorithms for a fixed problem size ($N=10^4$). MSD Radix Sort and C-Burstsort show differing cache behaviours}{figure.6}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces LLC miss rate vs.\ $N$ for \texttt  {std::sort} vs.\ C-Burstsort on \texttt  {wiki\_random}. The cache-aware design keeps miss rates flat while the cache-agnostic baseline degrades as $N$ exceeds LLC capacity. This directly confirms the near-$O(N/B)$ I/O behaviour of C-Burstsort.}}{12}{figure.7}\protected@file@percent }
+\newlabel{fig:llc_two}{{7}{12}{LLC miss rate vs.\ $N$ for \texttt {std::sort} vs.\ C-Burstsort on \texttt {wiki\_random}. The cache-aware design keeps miss rates flat while the cache-agnostic baseline degrades as $N$ exceeds LLC capacity. This directly confirms the near-$O(N/B)$ I/O behaviour of C-Burstsort}{figure.7}{}}
+\gdef \@abspage@last{12}
